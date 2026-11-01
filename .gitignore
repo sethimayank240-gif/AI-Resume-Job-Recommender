@@ -1,0 +1,38 @@
+# Node.js dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Python virtual environments
+venv/
+.venv/
+ai-service/venv/
+__pycache__/
+*.py[cod]
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+coverage/
+
+# IDE and operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Uploaded files and generated output
+uploads/
+*.log
+
+# Personal files and generated project dumps
+mayankphoto.jpg
+project-tree.txt
+project_dump.txt
+project_slim.txt
+clean-project-tree.txt
