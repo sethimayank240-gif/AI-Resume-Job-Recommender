@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -52,6 +53,7 @@ const ResumeUpload = () => {
     setSelectedFile(null);
     setAnalysis(null);
     setError("");
+    setSuccess("");
 
     const input = document.getElementById("resume-file");
 
@@ -91,10 +93,15 @@ const ResumeUpload = () => {
         const result = response.data.analysis;
 
         if (!result) {
-          throw new Error("Analysis data was not returned by the server.");
+          throw new Error(
+            "Analysis data was not returned by the server."
+          );
         }
 
-        localStorage.setItem(storageKey, JSON.stringify(result));
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify(result)
+        );
 
         if (userEmail) {
           localStorage.setItem(
@@ -120,8 +127,8 @@ const ResumeUpload = () => {
 
       setError(
         err.response?.data?.message ||
-        err.message ||
-        "Unable to connect to the backend server."
+          err.message ||
+          "Unable to connect to the backend server."
       );
     } finally {
       setUploading(false);
@@ -132,8 +139,12 @@ const ResumeUpload = () => {
 
   const matching = analysis?.matching || {};
 
+  // Prefer the explicit ATS score returned by the backend.
   const matchScore = Number(
-    matching.overall_match_score ?? 0
+    matching.ats_score ??
+      matching.overall_match_score ??
+      matching.skill_match_percentage ??
+      0
   );
 
   const resumeSkills = analysis?.resume?.skills || [];
@@ -144,6 +155,7 @@ const ResumeUpload = () => {
     if (score >= 80) return "Excellent Match";
     if (score >= 60) return "Strong Match";
     if (score >= 40) return "Moderate Match";
+
     return "Needs Improvement";
   };
 
@@ -151,13 +163,22 @@ const ResumeUpload = () => {
     if (score >= 80) return "excellent";
     if (score >= 60) return "strong";
     if (score >= 40) return "moderate";
+
     return "low";
   };
+
+  // Use the category returned by the backend when available.
+  const atsCategory =
+    matching.score_category || getScoreLabel(matchScore);
+
+  const clampedScore = Math.max(
+    0,
+    Math.min(100, matchScore)
+  );
 
   return (
     <>
       <style>{`
-
         /* GENERAL PAGE */
 
         .resume-page {
@@ -249,7 +270,7 @@ const ResumeUpload = () => {
           background: #ffffff;
           border: 1px solid #e5eaf2;
           border-radius: 17px;
-          box-shadow: 0 8px 28px rgba(31,55,90,.045);
+          box-shadow: 0 8px 28px rgba(31, 55, 90, 0.045);
         }
 
         .upload-card {
@@ -262,7 +283,7 @@ const ResumeUpload = () => {
           border-radius: 15px;
           text-align: center;
           background: #f8faff;
-          transition: .2s ease;
+          transition: 0.2s ease;
         }
 
         .upload-area:hover {
@@ -309,7 +330,7 @@ const ResumeUpload = () => {
           font-size: 14px;
           font-weight: 700;
           cursor: pointer;
-          transition: .2s ease;
+          transition: 0.2s ease;
         }
 
         .file-label:hover,
@@ -392,11 +413,12 @@ const ResumeUpload = () => {
           color: #263247;
           background: white;
           font: 14px/1.6 Arial, sans-serif;
+          box-sizing: border-box;
         }
 
         .jd-textarea:focus {
           border-color: #5681df;
-          box-shadow: 0 0 0 3px rgba(40,98,220,.10);
+          box-shadow: 0 0 0 3px rgba(40, 98, 220, 0.1);
         }
 
         /* MESSAGES AND BUTTONS */
@@ -472,9 +494,10 @@ const ResumeUpload = () => {
           margin: 7px 0 0;
           color: #8290a5;
           font-size: 13px;
+          line-height: 1.6;
         }
 
-        /* MATCH SCORE */
+        /* ATS MATCH SCORE */
 
         .score-card {
           position: relative;
@@ -509,7 +532,7 @@ const ResumeUpload = () => {
         }
 
         .score-recommendation {
-          margin: 0;
+          margin: 8px 0 0;
           color: #263b63;
           font-size: 15px;
           font-weight: 800;
@@ -528,7 +551,7 @@ const ResumeUpload = () => {
           height: 100%;
           border-radius: 99px;
           background: linear-gradient(90deg, #4e83ee, #245bd0);
-          transition: width .35s ease;
+          transition: width 0.35s ease;
         }
 
         .score-card.excellent .score-value {
@@ -545,6 +568,14 @@ const ResumeUpload = () => {
 
         .score-card.low .score-value {
           color: #c43d3d;
+        }
+
+        .score-note {
+          max-width: 600px;
+          margin: 15px auto 0;
+          color: #8290a5;
+          font-size: 12px;
+          line-height: 1.6;
         }
 
         /* STATISTICS */
@@ -564,7 +595,7 @@ const ResumeUpload = () => {
           border: 1px solid #e5eaf2;
           border-radius: 15px;
           background: white;
-          box-shadow: 0 5px 20px rgba(31,55,90,.035);
+          box-shadow: 0 5px 20px rgba(31, 55, 90, 0.035);
         }
 
         .stat-icon {
@@ -667,70 +698,6 @@ const ResumeUpload = () => {
           font-size: 13px;
         }
 
-        /* JOB RECOMMENDATIONS */
-
-        .jobs-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
-        }
-
-        .job-card {
-          padding: 17px;
-          border: 1px solid #e7ecf4;
-          border-radius: 13px;
-          background: #fbfcff;
-          transition: .2s ease;
-        }
-
-        .job-card:hover {
-          border-color: #b9cdf5;
-          box-shadow: 0 5px 18px rgba(31,55,90,.06);
-          transform: translateY(-2px);
-        }
-
-        .job-card-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 10px;
-        }
-
-        .job-role {
-          margin: 0;
-          color: #253653;
-          font-size: 14px;
-          font-weight: 800;
-          line-height: 1.45;
-        }
-
-        .job-percent {
-          flex: 0 0 auto;
-          color: #2460d2;
-          font-size: 14px;
-          font-weight: 850;
-        }
-
-        .job-track {
-          height: 7px;
-          margin-top: 13px;
-          overflow: hidden;
-          border-radius: 99px;
-          background: #e8edf5;
-        }
-
-        .job-fill {
-          height: 100%;
-          border-radius: 99px;
-          background: #3974df;
-        }
-
-        .job-caption {
-          margin: 8px 0 0;
-          color: #8793a6;
-          font-size: 11px;
-        }
-
         /* RESPONSIVE DESIGN */
 
         @media (max-width: 650px) {
@@ -772,8 +739,7 @@ const ResumeUpload = () => {
             width: 100%;
           }
 
-          .stats-grid,
-          .jobs-grid {
+          .stats-grid {
             grid-template-columns: 1fr;
           }
 
@@ -784,40 +750,39 @@ const ResumeUpload = () => {
           .selected-file {
             align-items: flex-start;
           }
-        }
 
+          .score-value {
+            font-size: 46px;
+          }
+        }
       `}</style>
 
       <div className="resume-page">
-
         {/* HEADER */}
 
         <header className="resume-header">
           <div className="resume-header-inner">
-
             <div>
               <h1 className="brand-title">
                 Resume Analysis
               </h1>
 
               <p className="brand-subtitle">
-                AI-Based Resume Screening &amp; Job Recommendation System
+                AI-Based Resume Screening &amp; Job Recommendation
+                System
               </p>
             </div>
 
             <div className="header-pill">
               AI Resume Insights
             </div>
-
           </div>
         </header>
 
         <main className="resume-main">
-
           {/* PAGE HEADING */}
 
           <section className="page-heading">
-
             <span className="eyebrow">
               Resume Intelligence
             </span>
@@ -831,18 +796,13 @@ const ResumeUpload = () => {
               your skills, measure compatibility, and explore suitable
               job roles.
             </p>
-
           </section>
 
           {/* UPLOAD FORM */}
 
           <section className="upload-card">
-
             <div className="upload-area">
-
-              <div className="upload-icon">
-                ↑
-              </div>
+              <div className="upload-icon">↑</div>
 
               <h3 className="upload-title">
                 Upload Your Resume
@@ -870,14 +830,12 @@ const ResumeUpload = () => {
               <p className="supported-files">
                 Supported formats: PDF, DOC, DOCX · Maximum size: 5 MB
               </p>
-
             </div>
 
             {/* SELECTED FILE */}
 
             {selectedFile && (
               <div className="selected-file">
-
                 <div>
                   <p className="file-name">
                     {selectedFile.name}
@@ -895,14 +853,12 @@ const ResumeUpload = () => {
                 >
                   Remove
                 </button>
-
               </div>
             )}
 
             {/* JOB DESCRIPTION */}
 
             <div className="jd-section">
-
               <label
                 htmlFor="job-description"
                 className="jd-label"
@@ -911,7 +867,8 @@ const ResumeUpload = () => {
               </label>
 
               <p className="jd-description">
-                Paste the job description you want to compare with your resume.
+                Paste the job description you want to compare with your
+                resume.
               </p>
 
               <textarea
@@ -925,7 +882,6 @@ const ResumeUpload = () => {
                   setSuccess("");
                 }}
               />
-
             </div>
 
             {/* ERROR */}
@@ -947,7 +903,6 @@ const ResumeUpload = () => {
             {/* ACTION BUTTONS */}
 
             <div className="actions">
-
               <button
                 type="button"
                 className="back-button"
@@ -966,18 +921,14 @@ const ResumeUpload = () => {
                   ? "Analysing Resume..."
                   : "Analyse Resume →"}
               </button>
-
             </div>
-
           </section>
 
           {/* ANALYSIS RESULTS */}
 
           {analysis && (
             <section className="analysis-section">
-
               <div className="analysis-heading">
-
                 <span className="eyebrow">
                   Your Results
                 </span>
@@ -987,17 +938,18 @@ const ResumeUpload = () => {
                 </h3>
 
                 <p className="analysis-subtitle">
-                  A summary of your resume skills and job-description match.
+                  A summary of your resume skills and job-description
+                  match.
                 </p>
-
               </div>
 
-              {/* MATCH SCORE */}
+              {/* ATS SCORE */}
 
-              <div className={`score-card ${getScoreClass(matchScore)}`}>
-
+              <div
+                className={`score-card ${getScoreClass(matchScore)}`}
+              >
                 <p className="score-label">
-                  Resume–Job Description Match
+                  ATS Compatibility Score
                 </p>
 
                 <div className="score-value">
@@ -1005,32 +957,37 @@ const ResumeUpload = () => {
                 </div>
 
                 <p className="score-recommendation">
-                  {getScoreLabel(matchScore)}
+                  {atsCategory}
                 </p>
 
                 <div
                   className="score-track"
                   role="progressbar"
-                  aria-valuenow={Math.max(0, Math.min(100, matchScore))}
+                  aria-label="ATS compatibility score"
+                  aria-valuenow={clampedScore}
                   aria-valuemin="0"
                   aria-valuemax="100"
                 >
                   <div
                     className="score-fill"
                     style={{
-                      width: `${Math.max(0, Math.min(100, matchScore))}%`
+                      width: `${clampedScore}%`,
                     }}
                   />
                 </div>
 
+                <p className="score-note">
+                  This score represents the percentage of required job
+                  skills identified in your resume. It is an indicative
+                  skill-match score, not a guarantee of passing an
+                  employer's ATS screening.
+                </p>
               </div>
 
               {/* SKILL STATISTICS */}
 
               <div className="stats-grid">
-
                 <div className="stat-card">
-
                   <div className="stat-icon match">
                     ✓
                   </div>
@@ -1044,11 +1001,9 @@ const ResumeUpload = () => {
                       Matched Skills
                     </p>
                   </div>
-
                 </div>
 
                 <div className="stat-card">
-
                   <div className="stat-icon missing">
                     !
                   </div>
@@ -1062,17 +1017,13 @@ const ResumeUpload = () => {
                       Skills to Improve
                     </p>
                   </div>
-
                 </div>
-
               </div>
 
               {/* RESUME SKILLS */}
 
               <div className="analysis-card">
-
                 <div className="card-heading">
-
                   <h4>
                     Skills Identified in Your Resume
                   </h4>
@@ -1080,11 +1031,9 @@ const ResumeUpload = () => {
                   <span className="card-count">
                     {resumeSkills.length} Skills
                   </span>
-
                 </div>
 
                 <div className="skill-list">
-
                   {resumeSkills.length > 0 ? (
                     resumeSkills.map((skill, index) => (
                       <span
@@ -1099,29 +1048,21 @@ const ResumeUpload = () => {
                       No skills detected.
                     </p>
                   )}
-
                 </div>
-
               </div>
 
               {/* MATCHED SKILLS */}
 
               <div className="analysis-card">
-
                 <div className="card-heading">
-
-                  <h4>
-                    Matched Skills
-                  </h4>
+                  <h4>Matched Skills</h4>
 
                   <span className="card-count">
                     {matchedSkills.length} Found
                   </span>
-
                 </div>
 
                 <div className="skill-list">
-
                   {matchedSkills.length > 0 ? (
                     matchedSkills.map((skill, index) => (
                       <span
@@ -1136,29 +1077,21 @@ const ResumeUpload = () => {
                       No matched skills found.
                     </p>
                   )}
-
                 </div>
-
               </div>
 
               {/* MISSING SKILLS */}
 
               <div className="analysis-card">
-
                 <div className="card-heading">
-
-                  <h4>
-                    Missing Skills
-                  </h4>
+                  <h4>Missing Skills</h4>
 
                   <span className="card-count">
                     {missingSkills.length} To Develop
                   </span>
-
                 </div>
 
                 <div className="skill-list">
-
                   {missingSkills.length > 0 ? (
                     missingSkills.map((skill, index) => (
                       <span
@@ -1173,14 +1106,10 @@ const ResumeUpload = () => {
                       No missing skills identified.
                     </p>
                   )}
-
                 </div>
-
               </div>
-
             </section>
           )}
-
         </main>
       </div>
     </>
